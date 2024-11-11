@@ -1,15 +1,18 @@
-import { awaitUserClick, awaitVideoEnd } from "../../common";
+import {awaitUserClick} from "../../common";
 import { AnimationContext } from "../../engine/Animator";
-import { SimpleScene } from "../SceneManager";
+
+import {SimpleScene} from "../SimpleScene.ts";
 
 export class DefaultScene extends SimpleScene {
     private bg!: HTMLImageElement;
-    private video:HTMLVideoElement;
 
-    constructor(video:HTMLVideoElement){
+
+    constructor(){
         super();
-        this.video = video;
     }
+    
+
+
     
     async onProcess(_ctx: AnimationContext) {
         this.bg = await _ctx.loadResource("bg2.png")

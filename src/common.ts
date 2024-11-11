@@ -1,5 +1,5 @@
 let canvas = document.querySelector<HTMLCanvasElement>("#canvas");
-export let video = document.querySelector<HTMLVideoElement>("video");
+ let video = document.querySelector<HTMLVideoElement>("video");
 let context = canvas?.getContext("2d");
 
 

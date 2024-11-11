@@ -9,18 +9,6 @@ export interface Scene {
     onUpdate:(ctx:AnimationContext)=>Promise<void>,
     onProcess:(ctx:AnimationContext)=>Promise<void>,
 }
-//场景生命周期管理
-export abstract class SimpleScene implements Scene{
-    protected senseManager!:SceneManager;
-    async onLeave(_ctx:AnimationContext){};
-    async onLoad(senseManager:SceneManager){
-        this.senseManager = senseManager;
-    };
-    async onChange(){};
-    async onUpdate(_ctx:AnimationContext){};
-    async onProcess(_ctx:AnimationContext){};
-    
-}
 
 
 

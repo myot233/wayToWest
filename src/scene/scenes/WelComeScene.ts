@@ -1,5 +1,6 @@
 import { AnimationContext } from "../../engine/Animator";
-import { SimpleScene } from "../SceneManager";
+
+import {SimpleScene} from "../SimpleScene.ts";
 
 export class WelComeScene extends SimpleScene {
     private train!: HTMLImageElement;
