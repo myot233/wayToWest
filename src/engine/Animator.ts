@@ -35,12 +35,15 @@ class AnimationContextImpl implements AnimationContext {
             let img = new Image();
             img.src = src;
             this.res.set(src, img)
-
+            return new Promise<HTMLImageElement>((resolve,reject)=>{
+                let image = this.res.get(src)!;
+                image.onload = () => resolve(image)
+                image.onerror = ()=> reject("the resources is timeout")
+            })
         }
-        return new Promise<HTMLImageElement>((resolve,reject)=>{
+        return new Promise<HTMLImageElement>((resolve)=>{
             let image = this.res.get(src)!;
-            image.onload = () => resolve(image)
-            image.onerror = ()=> reject("the resources is timeout")
+            resolve(image)
         })
     }
 
