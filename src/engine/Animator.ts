@@ -68,12 +68,11 @@ export default class Animator {
     private lastTime = 0;
 
     private async update(time: DOMHighResTimeStamp = 0) {
-        console.log(time)
 
         this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height)
         for(let func of this.callbacks){
             this.animContext.time = time;
-            this.animContext.timeDelta = time - this.lastTime;
+            this.animContext.timeDelta = (time - this.lastTime)*1e-1;
             await func(this.animContext);
         }
 

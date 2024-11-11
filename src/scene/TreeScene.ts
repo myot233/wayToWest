@@ -5,13 +5,22 @@ import {AnimationContext} from "../engine/Animator.ts";
 export class TreeScene extends SimpleScene {
     protected children:RenderableObject[] = []
     
+    async onProcess(_ctx: AnimationContext){
+        for (let item of this.children){
+            await item.onProcess(_ctx)
+        }
+    }
+    
     async onUpdate(_ctx: AnimationContext): Promise<void> {
-        this.render(_ctx.canvasContext);
+        for (let item of this.children){
+            await item.onUpdate(_ctx)
+        }
+        await this.render(_ctx);
     }
 
-    private render(_ctx:CanvasRenderingContext2D){
+    private async render(_ctx:AnimationContext){
         for (let child of this.children){
-            child.render(_ctx)
+            await child.render(_ctx)
         }
     }
     

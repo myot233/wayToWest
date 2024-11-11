@@ -17,7 +17,7 @@ let senseManager = new SceneManager(animator)
 senseManager.registerScene("default",new VideoScene(video))
 senseManager.registerScene("BeginScene",new DefaultScene())
 senseManager.registerScene("WelComeSense", new WelComeScene())
-senseManager.registerScene("GameScene", new GameScene())
+senseManager.registerScene("default", new GameScene())
 
 animator.start();
 
