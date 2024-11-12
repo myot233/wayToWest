@@ -27,6 +27,8 @@ export abstract class RenderableObject implements TransForm,Renderable,LifeCycle
     abstract onProcess(ctx: AnimationContext): Promise<void>;
     
     abstract onUpdate(ctx: AnimationContext): Promise<void>;
+    
+    abstract onLeave(ctx: AnimationContext):Promise<void>;
 }
 
 

@@ -19,14 +19,16 @@ export default class AITruck extends Car {
     // Render method to show the truck
     async render(_ctx: AnimationContext): Promise<void> {
         const truckImage = await _ctx.loadResource(this.truckFrames[this.animationFrame]);
+        this.width = truckImage.width;
+        this.height = truckImage.height;
         this.y = this.getPos()
-        _ctx.canvasContext.drawImage(truckImage, this.x + this.s, this.y);
+        _ctx.canvasContext.drawImage(truckImage, this.x, this.y);
     }
 
     // Update method to manage movement
     async onUpdate(_ctx: AnimationContext): Promise<void> {
         // Move the truck horizontally (just like the player car)
-        this.s += this.truckSpeed * _ctx.timeDelta;
+        this.x += this.truckSpeed * _ctx.timeDelta;
         this.line = Math.round(((_ctx.time % 5000) / 1666 + this.seed) % 3)
         // this.s += this.truckSpeed * _ctx.timeDelta;
         // this.changeLane()
@@ -54,6 +56,10 @@ export default class AITruck extends Car {
     }
 
     onProcess(_ctx: AnimationContext): Promise<void> {
+        return Promise.resolve(undefined);
+    }
+
+    onLeave(_ctx: AnimationContext): Promise<void> {
         return Promise.resolve(undefined);
     }
 }

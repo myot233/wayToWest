@@ -4,7 +4,7 @@ import { AnimationContext } from "../engine/Animator.ts";
 export default class Player extends Car {
     private isMovingLeft: boolean = false;
     private isMovingRight: boolean = false;
-
+    
     constructor(x: number, y: number) {
         super(x, y);
         window.addEventListener('keydown', this.handleKeydown);
@@ -25,7 +25,9 @@ export default class Player extends Car {
 
     async render(_ctx: AnimationContext): Promise<void> {
         let car = await _ctx.loadResource("car.png");
-        _ctx.canvasContext.drawImage(car, this.x + this.s, this.y);
+        this.width = car.width;
+        this.height = car.height;
+        _ctx.canvasContext.drawImage(car, this.x, this.y);
     }
 
     async onProcess(_ctx: AnimationContext): Promise<void> {
@@ -34,15 +36,14 @@ export default class Player extends Car {
     }
 
     async onUpdate(_ctx: AnimationContext): Promise<void> {
-        console.log(this)
         if (this.isMovingLeft) this.v = -5;
         else if (this.isMovingRight) this.v = 5;
         else this.v = 0
-        this.s += this.v * _ctx.timeDelta; // Frame-independent movement
+        this.x += this.v * _ctx.timeDelta; // Frame-independent movement
         this.y = this.getPos();
     }
 
-    onLeave() {
+    async onLeave(_ctx:AnimationContext) {
         window.removeEventListener('keydown', this.handleKeydown);
         window.removeEventListener('keyup', this.handleKeyup);
     }
