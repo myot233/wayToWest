@@ -3,13 +3,18 @@ import {RenderableObject} from "../entity/RenderableObject.ts";
 import {AnimationContext} from "../engine/Animator.ts";
 
 export class TreeScene extends SimpleScene {
-    protected children:RenderableObject[] = []
+    private children:RenderableObject[] = []
     
     async onProcess(_ctx: AnimationContext){
         for (let item of this.children){
             await item.onProcess(_ctx)
         }
     }
+    async pushChildren(_ctx: AnimationContext,child:RenderableObject){
+        await child.onProcess(_ctx)
+        this.children.push(child);
+    }
+    
     
     async onUpdate(_ctx: AnimationContext): Promise<void> {
         for (let item of this.children){

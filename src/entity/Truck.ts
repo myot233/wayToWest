@@ -3,15 +3,17 @@ import { AnimationContext } from "../engine/Animator.ts";
 
 export default class AITruck extends Car {
 // 1 for moving down, -1 for moving up
-    private laneChangeTimer: number = 0; // To manage lane switching
-    private laneChangeInterval: number = 3000; // Change lane every 3 seconds
-    private truckSpeed: number = 2; // The speed of the AI truck
-
+//     private laneChangeTimer: number = 0; // To manage lane switching
+//     private laneChangeInterval: number = 3000; // Change lane every 3 seconds
+    private truckSpeed: number = -2; // The speed of the AI truck
+    private seed:number ;
     private truckFrames: string[] = ["car.png", "car.png"];
     private animationFrame: number = 0;
 
-    constructor(x: number, y: number) {
+    constructor(x: number, y: number,seed:number) {
         super(x, y);
+        this.seed = seed;
+        this.truckSpeed -= seed % 3;
     }
 
     // Render method to show the truck
@@ -25,26 +27,26 @@ export default class AITruck extends Car {
     async onUpdate(_ctx: AnimationContext): Promise<void> {
         // Move the truck horizontally (just like the player car)
         this.s += this.truckSpeed * _ctx.timeDelta;
-        this.changeLane()
-        // Switch lanes periodically
-        if (_ctx.time - this.laneChangeTimer > this.laneChangeInterval) {
-            this.changeLane();
-            this.laneChangeTimer = _ctx.time;
-        }
+        this.line = Math.round(((_ctx.time % 5000) / 1666 + this.seed) % 3)
+        // this.s += this.truckSpeed * _ctx.timeDelta;
+        // this.changeLane()
+        // // Switch lanes periodically
+        // if (_ctx.time - this.laneChangeTimer > this.laneChangeInterval) {
+        //     this.changeLane();
+        //     this.laneChangeTimer = _ctx.time;
+        // }
 
         // Animate the truck
         this.animateTruck(_ctx);
     }
 
     // AI logic to change lanes (move up or down)
-    private changeLane() {
-        this.line = 1+3*Math.random()
-    }
+
 
     // Animation logic to cycle through frames
     private animateTruck(_ctx: AnimationContext) {
         const currentTime = _ctx.time;
-        if (currentTime % 500 < 50) { // Change animation frame every 250ms
+        if (currentTime % 500 < 250) { // Change animation frame every 250ms
             this.animationFrame = 0;
         } else {
             this.animationFrame = 1;
