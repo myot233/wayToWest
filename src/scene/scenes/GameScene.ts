@@ -61,16 +61,16 @@ export class GameScene extends TreeScene {
         _ctx.canvasContext.fillStyle = 'grey'
         _ctx.canvasContext.fillRect(0,_ctx.canvas.height-140,_ctx.canvas.width,_ctx.canvas.height)
         _ctx.canvasContext.fillStyle = 'black'
-        _ctx.canvasContext.font = "bold 48px serif"
-        let size = _ctx.canvasContext.measureText(`剩余时间:${this.calcLeftTime(_ctx)}`)
-        _ctx.canvasContext.fillText(`剩余时间:${this.calcLeftTime(_ctx)}`,20,_ctx.canvas.height - 140 + size.actualBoundingBoxAscent)
+        _ctx.canvasContext.font = "bold 48px YaHei"
+        _ctx.canvasContext.textBaseline = 'middle'
+        //let size = _ctx.canvasContext.measureText(`剩余时间:${this.calcLeftTime(_ctx)}`)
+        _ctx.canvasContext.fillText(`剩余时间:${this.calcLeftTime(_ctx)}`,20,_ctx.canvas.height - 70 )
     }
-
+    
     isCollision(x1: number, y1: number, w1: number, h1: number, x2: number, y2: number, w2: number, h2: number): boolean {
         // 判断是否有重叠
         const horizontalOverlap = x1 + w1 > x2 && x1 < x2 + w2;
         const verticalOverlap = y1 + h1 > y2 && y1 < y2 + h2;
-
         return horizontalOverlap && verticalOverlap;
     }
     
