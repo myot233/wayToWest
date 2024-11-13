@@ -5,8 +5,8 @@ export default class AITruck extends Car {
 // 1 for moving down, -1 for moving up
 //     private laneChangeTimer: number = 0; // To manage lane switching
 //     private laneChangeInterval: number = 3000; // Change lane every 3 seconds
-    private truckSpeed: number = -2; // The speed of the AI truck
-    private seed:number ;
+    private readonly truckSpeed: number = -2; // The speed of the AI truck
+    private readonly seed:number ;
     private truckFrames: string[] = ["car.png", "car.png"];
     private animationFrame: number = 0;
 

@@ -25,13 +25,13 @@ export abstract class Car extends RenderableObject{
     protected getPos(): number {
         switch (this.line) {
             case 1:
-                return 145;
+                return (this.getHeight()+10);
             case 2:
-                return 210;
+                return (this.getHeight()+10)*2;
             case 3:
-                return 275;
+                return (this.getHeight()+10)*3;
             default:
-                return 145;
+                return (this.getHeight()+10);
         }
     }
 
