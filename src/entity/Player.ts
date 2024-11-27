@@ -1,10 +1,20 @@
 ﻿import { Car } from "./Car.ts";
 import { AnimationContext } from "../engine/Animator.ts";
 
+interface PositionHistory {
+    x: number;
+    y: number;
+    rotation: number;
+    timestamp: number;
+}
+
 export default class Player extends Car {
     private isMovingLeft: boolean = false;
     private isMovingRight: boolean = false;
     private readonly moveSpeed: number = 15;
+    private readonly maxHistoryLength: number = 5;
+    private readonly afterImageLifetime: number = 100; // 残影持续时间（毫秒）
+    private positionHistory: PositionHistory[] = [];
     
     constructor(x: number, y: number) {
         super(x, y);
@@ -25,31 +35,41 @@ export default class Player extends Car {
         if (e.key === 'd') this.isMovingRight = false;
     };
 
+    private drawCarImage(_ctx: AnimationContext, car: HTMLImageElement, x: number, y: number, rotation: number, alpha: number = 1) {
+        _ctx.canvasContext.save();
+        _ctx.canvasContext.globalAlpha = alpha;
+        _ctx.canvasContext.translate(x + this.width/2, y + this.height/2);
+        _ctx.canvasContext.rotate(rotation * Math.PI / 180);
+        _ctx.canvasContext.drawImage(
+            car,
+            -this.width/2,
+            -this.height/2,
+            this.width,
+            this.height
+        );
+        _ctx.canvasContext.restore();
+    }
+
     async render(_ctx: AnimationContext): Promise<void> {
         let car = await _ctx.loadResource("car.png");
         this.width = car.width;
         this.height = car.height;
+
+        // 绘制残影
+        if (this.isMovingRight && this.v > 0) {
+            for (let i = 0; i < this.positionHistory.length; i++) {
+                const pos = this.positionHistory[i];
+                const age = _ctx.time - pos.timestamp;
+                if (age < this.afterImageLifetime) {
+                    // 计算残影透明度，越老的残影越透明
+                    const alpha = 0.3 * (1 - age / this.afterImageLifetime);
+                    this.drawCarImage(_ctx, car, pos.x, pos.y, pos.rotation, alpha);
+                }
+            }
+        }
         
-        // Save the current context state
-        _ctx.canvasContext.save();
-        
-        // Translate to the car's position (center point)
-        _ctx.canvasContext.translate(this.x + this.width/2, this.y + this.height/2);
-        
-        // Rotate
-        _ctx.canvasContext.rotate(this.getRotation() * Math.PI / 180);
-        
-        // Draw the car (centered)
-        _ctx.canvasContext.drawImage(
-            car, 
-            -this.width/2, 
-            -this.height/2, 
-            this.width, 
-            this.height
-        );
-        
-        // Restore the context state
-        _ctx.canvasContext.restore();
+        // 绘制主车辆
+        this.drawCarImage(_ctx, car, this.x, this.y, this.getRotation(), 1);
     }
 
     async onProcess(_ctx: AnimationContext): Promise<void> {
@@ -67,6 +87,24 @@ export default class Player extends Car {
             this.v = this.moveSpeed;
         } else {
             this.v = 0;
+        }
+
+        // 记录位置历史
+        if (this.isMovingRight && this.v > 0) {
+            this.positionHistory.unshift({
+                x: this.x,
+                y: this.y,
+                rotation: this.getRotation(),
+                timestamp: _ctx.time
+            });
+            
+            // 限制历史记录长度
+            if (this.positionHistory.length > this.maxHistoryLength) {
+                this.positionHistory.pop();
+            }
+        } else {
+            // 不在加速时清空历史记录
+            this.positionHistory = [];
         }
 
         // Update position with frame-independent movement
