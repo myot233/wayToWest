@@ -34,7 +34,7 @@ export class WelComeScene extends SimpleScene {
         console.log(2)
         const context = _ctx.canvasContext;
         const canvas = _ctx.canvas;
-        let train_speed = 1;
+        let train_speed = 0.5;
         let train_y = _ctx.canvas.height / 2 - 100;
         let rect_speed = train_speed * 1.5;
         let rect_w = rect_speed * _ctx.time;
@@ -42,7 +42,7 @@ export class WelComeScene extends SimpleScene {
         let min = Math.min(rect_w / canvas.width, 1);
 
         const calcShakeV = (deltaPhase: number) => {
-            const interval = 5e2 * train_speed * _ctx.timeDelta;
+            const interval = 5e3 * train_speed * _ctx.timeDelta;
             let shakeV = { dx: 0, dy: 0 }
             const phase = Math.floor((_ctx.time % interval) / (interval / 4)) + deltaPhase;
             switch (phase % 4) {

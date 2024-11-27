@@ -4,9 +4,11 @@ import { AnimationContext } from "../engine/Animator.ts";
 export default class Player extends Car {
     private isMovingLeft: boolean = false;
     private isMovingRight: boolean = false;
+    private readonly moveSpeed: number = 15;
     
     constructor(x: number, y: number) {
         super(x, y);
+        this.line = 2; // Start in middle line
         window.addEventListener('keydown', this.handleKeydown);
         window.addEventListener('keyup', this.handleKeyup);
     }
@@ -27,23 +29,58 @@ export default class Player extends Car {
         let car = await _ctx.loadResource("car.png");
         this.width = car.width;
         this.height = car.height;
-        _ctx.canvasContext.drawImage(car, this.x, this.y);
+        
+        // Save the current context state
+        _ctx.canvasContext.save();
+        
+        // Translate to the car's position (center point)
+        _ctx.canvasContext.translate(this.x + this.width/2, this.y + this.height/2);
+        
+        // Rotate
+        _ctx.canvasContext.rotate(this.getRotation() * Math.PI / 180);
+        
+        // Draw the car (centered)
+        _ctx.canvasContext.drawImage(
+            car, 
+            -this.width/2, 
+            -this.height/2, 
+            this.width, 
+            this.height
+        );
+        
+        // Restore the context state
+        _ctx.canvasContext.restore();
     }
 
     async onProcess(_ctx: AnimationContext): Promise<void> {
-        if (this.isMovingLeft) this.v = -5;
-        if (this.isMovingRight) this.v = 5;
+        // Initialize position if needed
+        if (this.x === 0) {
+            this.x = 100; // Starting X position
+        }
     }
 
     async onUpdate(_ctx: AnimationContext): Promise<void> {
-        if (this.isMovingLeft) this.v = -5;
-        else if (this.isMovingRight) this.v = 5;
-        else this.v = 0
-        this.x += this.v * _ctx.timeDelta; // Frame-independent movement
+        // Update velocity based on input
+        if (this.isMovingLeft) {
+            this.v = -this.moveSpeed;
+        } else if (this.isMovingRight) {
+            this.v = this.moveSpeed;
+        } else {
+            this.v = 0;
+        }
+
+        // Update position with frame-independent movement
+        const deltaSeconds = _ctx.timeDelta;
+        this.x += this.v * deltaSeconds;
+        
+        // Keep player within canvas bounds
+        this.x = Math.max(0, Math.min(this.x, _ctx.canvas.width - this.width));
+        
+        // Update vertical position based on line
         this.y = this.getPos();
     }
 
-    async onLeave(_ctx:AnimationContext) {
+    async onLeave(_ctx: AnimationContext) {
         window.removeEventListener('keydown', this.handleKeydown);
         window.removeEventListener('keyup', this.handleKeyup);
     }
