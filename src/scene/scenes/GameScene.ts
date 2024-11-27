@@ -11,11 +11,27 @@ import {Car} from "../../entity/Car.ts";
  */
 export class GameScene extends TreeScene {
     // Game state properties
-    private readonly totalTime: number = 40;
+    private survivalTime: number = 0;
+    private lives: number = 3;
+    private distance: number = 0;
     private handler: number | null = null;
     
     // Game entities
     private player: Player = new Player(0, 0);
+    
+    // 添加特效相关属性
+    private isShaking: boolean = false;
+    private shakeIntensity: number = 0;
+    private shakeDecay: number = 0.9;
+    private particles: Array<{
+        x: number;
+        y: number;
+        vx: number;
+        vy: number;
+        size: number;
+        color: string;
+        life: number;
+    }> = [];
     
     /**
      * Resets the game state to initial conditions
@@ -23,6 +39,9 @@ export class GameScene extends TreeScene {
     private async reset(): Promise<void> {
         this.children = [];
         this.player = new Player(0, 0);
+        this.lives = 3;
+        this.survivalTime = 0;
+        this.distance = 0;
     }
     
     /**
@@ -53,11 +72,20 @@ export class GameScene extends TreeScene {
      * Main game loop update - handles collisions and UI updates
      */
     async onUpdate(_ctx: AnimationContext): Promise<void> {
+        _ctx.canvasContext.save();
+        
         if (await this.checkCollisions(_ctx)) {
+            _ctx.canvasContext.restore();
             return;
         }
+        
+        // 更新和渲染特效
+        this.updateEffects(_ctx);
+        
         await this.drawGameUI(_ctx);
         await super.onUpdate(_ctx);
+        
+        _ctx.canvasContext.restore();
     }
     
     /**
@@ -73,9 +101,19 @@ export class GameScene extends TreeScene {
                 );
                 
                 if (collision) {
-                    await super.onUpdate(_ctx);
-                    await this.handleGameOver(_ctx);
-                    return true;
+                    this.lives--;
+                    // 触发碰撞特效
+                    await this.createCollisionEffect(_ctx, child.x, child.y);
+                    
+                    if (this.lives <= 0) {
+                        await super.onUpdate(_ctx);
+                        await this.handleGameOver(_ctx);
+                        return true;
+                    } else {
+                        // 移除碰撞的车辆
+                        this.children = this.children.filter(c => c !== child);
+                        return false;
+                    }
                 }
             }
         }
@@ -86,14 +124,33 @@ export class GameScene extends TreeScene {
      * Handles game over state and UI
      */
     private async handleGameOver(_ctx: AnimationContext): Promise<void> {
-        _ctx.canvasContext.font = "bold 48px serif";
-        const textSize = _ctx.canvasContext.measureText("游戏结束");
-        _ctx.canvasContext.fillText(
-            "游戏结束",
-            _ctx.canvas.width / 2 - textSize.width / 2,
-            _ctx.canvas.height / 2
-        );
-        await this.drawGameUI(_ctx);
+        const ctx = _ctx.canvasContext;
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+        ctx.fillRect(0, 0, _ctx.canvas.width, _ctx.canvas.height);
+        
+        ctx.font = "bold 48px serif";
+        // 使用更有地域特色的文案
+        const gameOverText = "车毁人亡";
+        const distanceText = `行程: ${(this.distance/1000).toFixed(1)}公里`;
+        const timeText = `坚持: ${this.survivalTime.toFixed(1)}秒`;
+        const tipText = "点击屏幕重新上路";
+        
+        const centerX = _ctx.canvas.width / 2;
+        const baseY = _ctx.canvas.height / 2 - 100;
+        
+        // 绘制结束统计信息
+        ctx.fillStyle = '#FFD700'; // 使用金色
+        ctx.fillText(gameOverText, centerX - ctx.measureText(gameOverText).width/2, baseY);
+        
+        ctx.font = "32px serif";
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillText(distanceText, centerX - ctx.measureText(distanceText).width/2, baseY + 60);
+        ctx.fillText(timeText, centerX - ctx.measureText(timeText).width/2, baseY + 110);
+        
+        ctx.font = "24px serif";
+        ctx.fillStyle = '#CCCCCC';
+        ctx.fillText(tipText, centerX - ctx.measureText(tipText).width/2, baseY + 180);
+        
         await awaitUserClick(_ctx.canvas);
         await this.senseManager.changeScene("default");
     }
@@ -107,46 +164,37 @@ export class GameScene extends TreeScene {
         const bottomHeight = 140;
         const padding = 20;
         
-        // Draw semi-transparent background panel
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        // 半透明背景面板
+        ctx.fillStyle = 'rgba(139, 69, 19, 0.7)'; // 使用褐色调
         ctx.fillRect(0, _ctx.canvas.height - bottomHeight, _ctx.canvas.width, bottomHeight);
         
-        // Add gradient border at the top of the panel
+        // 渐变边框
         const gradient = ctx.createLinearGradient(0, _ctx.canvas.height - bottomHeight, 0, _ctx.canvas.height - bottomHeight + 4);
-        gradient.addColorStop(0, 'rgba(255, 255, 255, 0.5)');
-        gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        gradient.addColorStop(0, 'rgba(255, 215, 0, 0.5)'); // 金色渐变
+        gradient.addColorStop(1, 'rgba(255, 215, 0, 0)');
         ctx.fillStyle = gradient;
         ctx.fillRect(0, _ctx.canvas.height - bottomHeight, _ctx.canvas.width, 4);
         
-        // Draw time remaining with shadow effect
-        const timeText = `剩余时间: ${this.calcLeftTime(_ctx)}`;
-        ctx.font = "bold 48px YaHei";
+        // 更新距离
+        this.survivalTime = _ctx.time * 1e-3;
+        this.distance += _ctx.timeDelta * 0.1; // 模拟行驶速度
+        
+        // 绘制行驶信息
+        ctx.font = "bold 32px YaHei";
         ctx.textBaseline = 'middle';
         
-        // Add text shadow
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-        ctx.fillText(timeText, padding + 2, _ctx.canvas.height - bottomHeight/2 + 2);
+        // 里程显示
+        const distanceText = `行程: ${(this.distance/1000).toFixed(1)}公里`;
+        ctx.fillStyle = '#FFD700';
+        ctx.fillText(distanceText, padding, _ctx.canvas.height - bottomHeight/2 - 20);
         
-        // Main text
-        ctx.fillStyle = '#FFFFFF';
-        ctx.fillText(timeText, padding, _ctx.canvas.height - bottomHeight/2);
+        // 时间显示
+        const timeText = `坚持: ${this.survivalTime.toFixed(1)}秒`;
+        ctx.fillText(timeText, padding, _ctx.canvas.height - bottomHeight/2 + 20);
         
-        // Add visual time indicator bar
-        const timeBarWidth = 200;
-        const timeBarHeight = 10;
-        const timeBarY = _ctx.canvas.height - padding - timeBarHeight;
-        const timeProgress = Math.max(0, Number(this.calcLeftTime(_ctx)) / this.totalTime);
-        
-        // Background bar
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
-        ctx.fillRect(padding, timeBarY, timeBarWidth, timeBarHeight);
-        
-        // Progress bar with gradient
-        const barGradient = ctx.createLinearGradient(padding, 0, padding + timeBarWidth, 0);
-        barGradient.addColorStop(0, '#4CAF50');
-        barGradient.addColorStop(1, '#8BC34A');
-        ctx.fillStyle = barGradient;
-        ctx.fillRect(padding, timeBarY, timeBarWidth * timeProgress, timeBarHeight);
+        const livesText = "❤️".repeat(this.lives); // 使用卡车emoji代替心形
+        ctx.font = "32px Arial";
+        ctx.fillText(livesText, _ctx.canvas.width - 150, _ctx.canvas.height - bottomHeight/2);
     }
     
     /**
@@ -162,13 +210,6 @@ export class GameScene extends TreeScene {
     }
     
     /**
-     * Calculates remaining game time
-     */
-    private calcLeftTime(_ctx: AnimationContext): string {
-        return (this.totalTime - _ctx.time * 1e-3).toFixed(2);
-    }
-    
-    /**
      * Cleanup when leaving the scene
      */
     async onLeave(_ctx: AnimationContext): Promise<void> {
@@ -177,6 +218,82 @@ export class GameScene extends TreeScene {
         }
         for (let child of this.children) {
             await child.onLeave(_ctx);
+        }
+    }
+
+    /**
+     * 创建碰撞特效
+     */
+    private async createCollisionEffect(_ctx: AnimationContext, x: number, y: number): Promise<void> {
+        // 开始屏幕震动
+        this.isShaking = true;
+        this.shakeIntensity = 20;
+
+        // 创建爆炸粒子
+        const particleCount = 30;
+        for (let i = 0; i < particleCount; i++) {
+            const angle = (Math.PI * 2 * i) / particleCount;
+            const speed = 5 + Math.random() * 5;
+            this.particles.push({
+                x: x,
+                y: y,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                size: 3 + Math.random() * 3,
+                color: ['#FF4444', '#FFAA00', '#FF8800'][Math.floor(Math.random() * 3)],
+                life: 1.0
+            });
+        }
+
+        // 创建闪光效果
+        _ctx.canvasContext.save();
+        _ctx.canvasContext.fillStyle = 'rgba(255, 255, 255, 0.8)';
+        _ctx.canvasContext.fillRect(0, 0, _ctx.canvas.width, _ctx.canvas.height);
+        _ctx.canvasContext.restore();
+
+        // 播放碰撞音效（如果有的话）
+        // await this.playCollisionSound();
+    }
+
+    /**
+     * 更新并渲染特效
+     */
+    private updateEffects(_ctx: AnimationContext): void {
+        const ctx = _ctx.canvasContext;
+        
+        // 更新屏幕震动
+        if (this.isShaking) {
+            const shakeOffsetX = (Math.random() - 0.5) * this.shakeIntensity;
+            const shakeOffsetY = (Math.random() - 0.5) * this.shakeIntensity;
+            ctx.translate(shakeOffsetX, shakeOffsetY);
+            
+            this.shakeIntensity *= this.shakeDecay;
+            if (this.shakeIntensity < 0.5) {
+                this.isShaking = false;
+            }
+        }
+
+        // 更新和渲染粒子
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+            const p = this.particles[i];
+            
+            // 更新粒子位置
+            p.x += p.vx;
+            p.y += p.vy;
+            p.life -= 0.02;
+            
+            // 渲染粒子
+            if (p.life > 0) {
+                ctx.save();
+                ctx.globalAlpha = p.life;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            } else {
+                this.particles.splice(i, 1);
+            }
         }
     }
 }
