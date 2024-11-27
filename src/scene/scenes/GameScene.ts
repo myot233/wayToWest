@@ -33,22 +33,56 @@ export class GameScene extends TreeScene {
         life: number;
     }> = [];
     
+    // 添加车道相关属性
+    private readonly roadHeight: number = 400; // 公路总高度
+    private readonly laneCount: number = 3;    // 车道数量
+    private readonly roadY: number = 100;      // 公路起始Y坐标
+    private readonly dashLength: number = 50;  // 虚线长度
+    private readonly dashGap: number = 30;     // 虚线间隔
+    private dashOffset: number = 0;            // 虚线偏移量，用于动画
+    
+    // 新增：道路滚动速度相关
+    private readonly roadScrollSpeed: number = -5; // 基础滚动速度
+    private readonly textureScrollSpeed: number = 3; // 纹理滚动速度
+    private textureOffset: number = 0; // 纹理偏移量
+    
+    // 添加场景装饰相关属性
+    private decorations: Array<{
+        x: number;
+        type: 'cactus' | 'rock' | 'bush';
+        scale: number;
+        offset: number;
+    }> = [];
+    private readonly decorationTypes = ['cactus', 'rock', 'bush'];
+    private decorationTimer: number = 0;
+    private readonly DECORATION_SPAWN_INTERVAL: number = 2000; // 装饰物生成间隔
+    
     /**
      * Resets the game state to initial conditions
      */
-    private async reset(): Promise<void> {
+    private async reset(_ctx: AnimationContext): Promise<void> {
         this.children = [];
         this.player = new Player(0, 0);
         this.lives = 3;
         this.survivalTime = 0;
         this.distance = 0;
+        this.dashOffset = 0;
+        this.particles = [];
+        this.isShaking = false;
+        this.decorations.length = 0;
+        this.decorationTimer = 0;
+        
+        // 初始化一些装饰物
+        for (let i = 0; i < 10; i++) {
+            this.addDecoration(_ctx.canvas.width * Math.random());
+        }
     }
     
     /**
      * Initializes the game scene and starts spawning AI trucks
      */
     async onProcess(_ctx: AnimationContext): Promise<void> {
-        await this.reset();
+        await this.reset(_ctx);
         await this.pushChildren(_ctx, this.player);
 
         // Start spawning AI trucks periodically
@@ -73,6 +107,15 @@ export class GameScene extends TreeScene {
      */
     async onUpdate(_ctx: AnimationContext): Promise<void> {
         _ctx.canvasContext.save();
+        
+        // 绘制背景
+        this.drawBackground(_ctx);
+        
+        // 绘制道路
+        this.drawRoad(_ctx);
+        
+        // 绘制装饰物
+        this.drawDecorations(_ctx);
         
         if (await this.checkCollisions(_ctx)) {
             _ctx.canvasContext.restore();
@@ -225,7 +268,7 @@ export class GameScene extends TreeScene {
      * 创建碰撞特效
      */
     private async createCollisionEffect(_ctx: AnimationContext, x: number, y: number): Promise<void> {
-        // 开始屏幕震动
+        // ��始屏幕震动
         this.isShaking = true;
         this.shakeIntensity = 20;
 
@@ -295,5 +338,229 @@ export class GameScene extends TreeScene {
                 this.particles.splice(i, 1);
             }
         }
+    }
+
+    /**
+     * 绘制道路和车道
+     */
+    private drawRoad(_ctx: AnimationContext): void {
+        const ctx = _ctx.canvasContext;
+        const width = _ctx.canvas.width;
+        
+        // 绘制路面背景
+        const roadGradient = ctx.createLinearGradient(0, this.roadY, 0, this.roadY + this.roadHeight);
+        roadGradient.addColorStop(0, '#4A4A4A');
+        roadGradient.addColorStop(0.5, '#555555');
+        roadGradient.addColorStop(1, '#4A4A4A');
+        
+        ctx.fillStyle = roadGradient;
+        ctx.fillRect(0, this.roadY, width, this.roadHeight);
+        
+        // 绘制路肩
+        ctx.fillStyle = '#FFD700';
+        ctx.fillRect(0, this.roadY, width, 5);
+        ctx.fillRect(0, this.roadY + this.roadHeight - 5, width, 5);
+        
+        // 计算车道高度
+        const laneHeight = this.roadHeight / this.laneCount;
+        
+        // 更新虚线偏移量（加快移动速度）
+        this.dashOffset = (this.dashOffset + _ctx.timeDelta * this.roadScrollSpeed) 
+            % (this.dashLength + this.dashGap);
+        
+        // 更新纹理偏移量
+        this.textureOffset = (this.textureOffset + _ctx.timeDelta * this.textureScrollSpeed) % 20;
+        
+        // 绘制车道分隔线
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([this.dashLength, this.dashGap]);
+        ctx.lineDashOffset = -this.dashOffset; // 负值使线条向左移动
+        
+        for (let i = 1; i < this.laneCount; i++) {
+            const y = this.roadY + (laneHeight * i);
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(width, y);
+            ctx.stroke();
+        }
+        
+        // 绘制路面纹理（带偏移）
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([2, 10]);
+        
+        // 使用textureOffset来移动纹理
+        for (let i = -20; i < this.roadHeight + 20; i += 20) {
+            const y = this.roadY + i + this.textureOffset;
+            if (y >= this.roadY && y <= this.roadY + this.roadHeight) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(width, y);
+                ctx.stroke();
+            }
+        }
+        
+        // 重置虚线设置
+        ctx.setLineDash([]);
+        
+        // 添加路面光影效果
+        const shadowGradient = ctx.createLinearGradient(0, this.roadY, width, this.roadY);
+        shadowGradient.addColorStop(0, 'rgba(0, 0, 0, 0.2)');
+        shadowGradient.addColorStop(0.5, 'rgba(0, 0, 0, 0)');
+        shadowGradient.addColorStop(1, 'rgba(0, 0, 0, 0.2)');
+        ctx.fillStyle = shadowGradient;
+        ctx.fillRect(0, this.roadY, width, this.roadHeight);
+    }
+
+    /**
+     * 绘制背景
+     */
+    private drawBackground(_ctx: AnimationContext): void {
+        const ctx = _ctx.canvasContext;
+        const width = _ctx.canvas.width;
+        const height = _ctx.canvas.height;
+
+        // 绘制天空渐变
+        const skyGradient = ctx.createLinearGradient(0, 0, 0, this.roadY);
+        skyGradient.addColorStop(0, '#87CEEB');  // 天蓝色
+        skyGradient.addColorStop(1, '#E6B980');  // 偏黄色，模拟沙漠天空
+        ctx.fillStyle = skyGradient;
+        ctx.fillRect(0, 0, width, this.roadY);
+
+        // 绘制远处的山脉
+        this.drawMountains(_ctx);
+
+        // 绘制路边的黄土地
+        const groundGradient = ctx.createLinearGradient(0, this.roadY + this.roadHeight, 0, height);
+        groundGradient.addColorStop(0, '#D2691E');  // 巧克力色
+        groundGradient.addColorStop(1, '#8B4513');  // 马鞍棕色
+        ctx.fillStyle = groundGradient;
+        ctx.fillRect(0, this.roadY + this.roadHeight, width, height - (this.roadY + this.roadHeight));
+    }
+
+    /**
+     * 绘制远处的山脉
+     */
+    private drawMountains(_ctx: AnimationContext): void {
+        const ctx = _ctx.canvasContext;
+        const width = _ctx.canvas.width;
+        
+        ctx.fillStyle = '#8B4513';  // 棕色山脉
+        
+        // 第一座山
+        ctx.beginPath();
+        ctx.moveTo(0, this.roadY);
+        ctx.lineTo(width * 0.3, this.roadY - 100);
+        ctx.lineTo(width * 0.5, this.roadY);
+        ctx.fill();
+        
+        // 第二座山
+        ctx.beginPath();
+        ctx.moveTo(width * 0.4, this.roadY);
+        ctx.lineTo(width * 0.7, this.roadY - 80);
+        ctx.lineTo(width, this.roadY);
+        ctx.fill();
+    }
+
+    /**
+     * 绘制路边装饰物
+     */
+    private drawDecorations(_ctx: AnimationContext): void {
+        const ctx = _ctx.canvasContext;
+        
+        // 更新装饰物位置和生成新的装饰物
+        this.decorationTimer += _ctx.timeDelta;
+        if (this.decorationTimer >= this.DECORATION_SPAWN_INTERVAL) {
+            this.addDecoration(_ctx.canvas.width);
+            this.decorationTimer = 0;
+        }
+        
+        // 移除超出视图的装饰物
+        this.decorations = this.decorations.filter(d => d.x > -50);
+        
+        // 更新和绘制装饰物
+        for (const decoration of this.decorations) {
+            decoration.x += this.roadScrollSpeed * _ctx.timeDelta * 0.05;
+            
+            switch (decoration.type) {
+                case 'cactus':
+                    this.drawCactus(ctx, decoration);
+                    break;
+                case 'rock':
+                    this.drawRock(ctx, decoration);
+                    break;
+                case 'bush':
+                    this.drawBush(ctx, decoration);
+                    break;
+            }
+        }
+    }
+
+    /**
+     * 添加新的装饰物
+     */
+    private addDecoration(x: number): void {
+        this.decorations.push({
+            x: x,
+            type: this.decorationTypes[Math.floor(Math.random() * this.decorationTypes.length)] as "cactus" | "rock" | "bush",
+            scale: 0.5 + Math.random() * 0.5,
+            offset: Math.random() * 50
+        });
+    }
+
+    /**
+     * 绘制仙人掌
+     */
+    private drawCactus(ctx: CanvasRenderingContext2D, decoration: any): void {
+        const baseY = this.roadY + this.roadHeight + decoration.offset;
+        const scale = decoration.scale;
+        
+        ctx.fillStyle = '#2F4F2F';
+        ctx.beginPath();
+        ctx.moveTo(decoration.x, baseY);
+        ctx.lineTo(decoration.x + 20 * scale, baseY - 40 * scale);
+        ctx.lineTo(decoration.x + 40 * scale, baseY);
+        ctx.fill();
+    }
+
+    /**
+     * 绘制岩石
+     */
+    private drawRock(ctx: CanvasRenderingContext2D, decoration: any): void {
+        const baseY = this.roadY + this.roadHeight + decoration.offset;
+        const scale = decoration.scale;
+        
+        ctx.fillStyle = '#696969';
+        ctx.beginPath();
+        ctx.ellipse(
+            decoration.x + 20 * scale,
+            baseY - 15 * scale,
+            25 * scale,
+            15 * scale,
+            0,
+            0,
+            Math.PI * 2
+        );
+        ctx.fill();
+    }
+
+    /**
+     * 绘制灌木
+     */
+    private drawBush(ctx: CanvasRenderingContext2D, decoration: any): void {
+        const baseY = this.roadY + this.roadHeight + decoration.offset;
+        const scale = decoration.scale;
+        
+        ctx.fillStyle = '#8B7355';
+        ctx.beginPath();
+        ctx.arc(
+            decoration.x + 20 * scale,
+            baseY - 15 * scale,
+            20 * scale,
+            0,
+            Math.PI * 2
+        );
+        ctx.fill();
     }
 }

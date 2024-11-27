@@ -17,6 +17,11 @@ export abstract class Car extends RenderableObject {
     protected readonly maxRotation: number = 15; // 最大旋转角度（度）
     protected readonly rotationSpeed: number = 0.1 // 旋转速度
     
+    // 道路相关常量（与GameScene保持一致）
+    private readonly ROAD_Y: number = 100;
+    private readonly ROAD_HEIGHT: number = 400;
+    private readonly LANE_COUNT: number = 3;
+    
     protected constructor(x: number, y: number, width: number = 0, height: number = 0) {
         super();
         this.x = x;
@@ -28,18 +33,22 @@ export abstract class Car extends RenderableObject {
 
     getWidth = () => this.width;
     getHeight = () => this.height;
-    getRotation = () => this.rotation; // 获取当前旋转角度
+    getRotation = () => this.rotation;
 
     protected getTargetPos(): number {
+        const laneHeight = this.ROAD_HEIGHT / this.LANE_COUNT;
+        const laneCenter = laneHeight / 2;
+        
+        // 计算每条车道的中心Y坐标
         switch (this.line) {
             case 1:
-                return (this.getHeight() + 10);
+                return this.ROAD_Y + laneCenter- this.height/2;
             case 2:
-                return (this.getHeight() + 10) * 2;
+                return this.ROAD_Y + laneHeight + laneCenter - this.height/2;
             case 3:
-                return (this.getHeight() + 10) * 3;
+                return this.ROAD_Y + (laneHeight * 2) + laneCenter- this.height/2;
             default:
-                return (this.getHeight() + 10);
+                return this.ROAD_Y + laneCenter- this.height/2;
         }
     }
 
@@ -81,6 +90,16 @@ export abstract class Car extends RenderableObject {
         }
         
         return this.y;
+    }
+
+    // 新增：限制车道范围
+    protected setLine(line: number): void {
+        this.line = Math.max(1, Math.min(this.LANE_COUNT, line));
+    }
+
+    // 新增：获取当前车道
+    protected getCurrentLane(): number {
+        return this.line;
     }
 }
 
