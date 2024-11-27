@@ -46,16 +46,21 @@ export class GameScene extends TreeScene {
     private readonly textureScrollSpeed: number = 3; // 纹理滚动速度
     private textureOffset: number = 0; // 纹理偏移量
     
-    // 添加场景装饰相关属性
-    private decorations: Array<{
+    // 保留山脉滚动相关属性
+    private mountainOffset: number = 0;
+    private readonly mountainScrollSpeed: number = 0.1; // 山脉移动速度（比道路慢得多）
+    
+    // 添加湖泊和戈壁相关属性
+    private readonly lakes: Array<{
         x: number;
-        type: 'cactus' | 'rock' | 'bush';
-        scale: number;
+        width: number;
         offset: number;
     }> = [];
-    private readonly decorationTypes = ['cactus', 'rock', 'bush'];
-    private decorationTimer: number = 0;
-    private readonly DECORATION_SPAWN_INTERVAL: number = 2000; // 装饰物生成间隔
+    private readonly gobi: Array<{
+        x: number;
+        size: number;
+        color: string;
+    }> = [];
     
     /**
      * Resets the game state to initial conditions
@@ -69,12 +74,28 @@ export class GameScene extends TreeScene {
         this.dashOffset = 0;
         this.particles = [];
         this.isShaking = false;
-        this.decorations.length = 0;
-        this.decorationTimer = 0;
+        this.mountainOffset = 0;
         
-        // 初始化一些装饰物
-        for (let i = 0; i < 10; i++) {
-            this.addDecoration(_ctx.canvas.width * Math.random());
+        // 初始化湖泊和戈壁
+        this.lakes.length = 0;
+        this.gobi.length = 0;
+        
+        // 添加几个初始湖泊
+        for (let i = 0; i < 3; i++) {
+            this.lakes.push({
+                x: _ctx.canvas.width * Math.random(),
+                width: 100 + Math.random() * 200,
+                offset: Math.random() * 50
+            });
+        }
+        
+        // 添加一些戈壁石
+        for (let i = 0; i < 20; i++) {
+            this.gobi.push({
+                x: _ctx.canvas.width * Math.random(),
+                size: 10 + Math.random() * 20,
+                color: ['#8B4513', '#A0522D', '#6B4423'][Math.floor(Math.random() * 3)]
+            });
         }
     }
     
@@ -113,9 +134,6 @@ export class GameScene extends TreeScene {
         
         // 绘制道路
         this.drawRoad(_ctx);
-        
-        // 绘制装饰物
-        this.drawDecorations(_ctx);
         
         if (await this.checkCollisions(_ctx)) {
             _ctx.canvasContext.restore();
@@ -268,7 +286,7 @@ export class GameScene extends TreeScene {
      * 创建碰撞特效
      */
     private async createCollisionEffect(_ctx: AnimationContext, x: number, y: number): Promise<void> {
-        // ��始屏幕震动
+        // 始屏幕震动
         this.isShaking = true;
         this.shakeIntensity = 20;
 
@@ -437,6 +455,9 @@ export class GameScene extends TreeScene {
         groundGradient.addColorStop(1, '#8B4513');  // 马鞍棕色
         ctx.fillStyle = groundGradient;
         ctx.fillRect(0, this.roadY + this.roadHeight, width, height - (this.roadY + this.roadHeight));
+
+        // 绘制戈���和湖泊景观
+        this.drawLandscape(_ctx);
     }
 
     /**
@@ -446,121 +467,112 @@ export class GameScene extends TreeScene {
         const ctx = _ctx.canvasContext;
         const width = _ctx.canvas.width;
         
+        // 更新山脉偏移量
+        this.mountainOffset = (this.mountainOffset + _ctx.timeDelta * this.mountainScrollSpeed) % width;
+        
         ctx.fillStyle = '#8B4513';  // 棕色山脉
         
-        // 第一座山
-        ctx.beginPath();
-        ctx.moveTo(0, this.roadY);
-        ctx.lineTo(width * 0.3, this.roadY - 100);
-        ctx.lineTo(width * 0.5, this.roadY);
-        ctx.fill();
-        
-        // 第二座山
-        ctx.beginPath();
-        ctx.moveTo(width * 0.4, this.roadY);
-        ctx.lineTo(width * 0.7, this.roadY - 80);
-        ctx.lineTo(width, this.roadY);
-        ctx.fill();
-    }
-
-    /**
-     * 绘制路边装饰物
-     */
-    private drawDecorations(_ctx: AnimationContext): void {
-        const ctx = _ctx.canvasContext;
-        
-        // 更新装饰物位置和生成新的装饰物
-        this.decorationTimer += _ctx.timeDelta;
-        if (this.decorationTimer >= this.DECORATION_SPAWN_INTERVAL) {
-            this.addDecoration(_ctx.canvas.width);
-            this.decorationTimer = 0;
-        }
-        
-        // 移除超出视图的装饰物
-        this.decorations = this.decorations.filter(d => d.x > -50);
-        
-        // 更新和绘制装饰物
-        for (const decoration of this.decorations) {
-            decoration.x += this.roadScrollSpeed * _ctx.timeDelta * 0.05;
+        // 绘制两组山脉以实现无缝滚动
+        for (let i = 0; i < 2; i++) {
+            const offset = this.mountainOffset + width * i;
             
-            switch (decoration.type) {
-                case 'cactus':
-                    this.drawCactus(ctx, decoration);
-                    break;
-                case 'rock':
-                    this.drawRock(ctx, decoration);
-                    break;
-                case 'bush':
-                    this.drawBush(ctx, decoration);
-                    break;
-            }
+            // 第一座山
+            ctx.beginPath();
+            ctx.moveTo(0 - offset, this.roadY);
+            ctx.lineTo(width * 0.3 - offset, this.roadY - 100);
+            ctx.lineTo(width * 0.5 - offset, this.roadY);
+            ctx.fill();
+            
+            // 第二座山
+            ctx.beginPath();
+            ctx.moveTo(width * 0.4 - offset, this.roadY);
+            ctx.lineTo(width * 0.7 - offset, this.roadY - 80);
+            ctx.lineTo(width - offset, this.roadY);
+            ctx.fill();
         }
     }
 
     /**
-     * 添加新的装饰物
+     * 绘制戈壁和湖泊景观
      */
-    private addDecoration(x: number): void {
-        this.decorations.push({
-            x: x,
-            type: this.decorationTypes[Math.floor(Math.random() * this.decorationTypes.length)] as "cactus" | "rock" | "bush",
-            scale: 0.5 + Math.random() * 0.5,
-            offset: Math.random() * 50
-        });
-    }
-
-    /**
-     * 绘制仙人掌
-     */
-    private drawCactus(ctx: CanvasRenderingContext2D, decoration: any): void {
-        const baseY = this.roadY + this.roadHeight + decoration.offset;
-        const scale = decoration.scale;
+    private drawLandscape(_ctx: AnimationContext): void {
+        const ctx = _ctx.canvasContext;
+        const width = _ctx.canvas.width;
+        const groundY = this.roadY + this.roadHeight;
         
-        ctx.fillStyle = '#2F4F2F';
-        ctx.beginPath();
-        ctx.moveTo(decoration.x, baseY);
-        ctx.lineTo(decoration.x + 20 * scale, baseY - 40 * scale);
-        ctx.lineTo(decoration.x + 40 * scale, baseY);
-        ctx.fill();
-    }
-
-    /**
-     * 绘制岩石
-     */
-    private drawRock(ctx: CanvasRenderingContext2D, decoration: any): void {
-        const baseY = this.roadY + this.roadHeight + decoration.offset;
-        const scale = decoration.scale;
+        // 更新和绘制湖泊
+        for (let i = this.lakes.length - 1; i >= 0; i--) {
+            const lake = this.lakes[i];
+            lake.x += this.roadScrollSpeed * _ctx.timeDelta * 0.05;
+            
+            if (lake.x + lake.width < 0) {
+                // 如果湖泊移出屏幕，在右侧重新生成
+                lake.x = width + Math.random() * 200;
+                lake.width = 100 + Math.random() * 200;
+                lake.offset = Math.random() * 100;
+            }
+            
+            // 绘制湖泊（从俯视角度）
+            const lakeGradient = ctx.createRadialGradient(
+                lake.x + lake.width/2, groundY + lake.offset + lake.width/2, 0,
+                lake.x + lake.width/2, groundY + lake.offset + lake.width/2, lake.width/2
+            );
+            lakeGradient.addColorStop(0, 'rgba(65, 105, 225, 0.7)');
+            lakeGradient.addColorStop(1, 'rgba(135, 206, 235, 0.5)');
+            
+            ctx.fillStyle = lakeGradient;
+            ctx.beginPath();
+            ctx.ellipse(
+                lake.x + lake.width/2,
+                groundY + lake.offset + lake.width/2,
+                lake.width/2,
+                lake.width/4,
+                0,
+                0,
+                Math.PI * 2
+            );
+            ctx.fill();
+        }
         
-        ctx.fillStyle = '#696969';
-        ctx.beginPath();
-        ctx.ellipse(
-            decoration.x + 20 * scale,
-            baseY - 15 * scale,
-            25 * scale,
-            15 * scale,
-            0,
-            0,
-            Math.PI * 2
-        );
-        ctx.fill();
-    }
+        // 更新和绘制戈壁石
+        for (let i = this.gobi.length - 1; i >= 0; i--) {
+            const stone = this.gobi[i];
+            stone.x += this.roadScrollSpeed * _ctx.timeDelta * 0.05;
+            
+            if (stone.x + stone.size < 0) {
+                // 如果石头移出屏幕，在右侧重新生成
+                stone.x = width + Math.random() * 100;
+                stone.size = 10 + Math.random() * 30;
+                stone.color = ['#8B4513', '#A0522D', '#6B4423'][Math.floor(Math.random() * 3)];
+            }
+            
+            // 绘制戈壁石（从俯视角度）
+            ctx.fillStyle = stone.color;
+            ctx.beginPath();
+            ctx.ellipse(
+                stone.x + stone.size/2,
+                groundY + 20 + stone.size/2,
+                stone.size/2,
+                stone.size/3,
+                0,
+                0,
+                Math.PI * 2
+            );
+            ctx.fill();
 
-    /**
-     * 绘制灌木
-     */
-    private drawBush(ctx: CanvasRenderingContext2D, decoration: any): void {
-        const baseY = this.roadY + this.roadHeight + decoration.offset;
-        const scale = decoration.scale;
-        
-        ctx.fillStyle = '#8B7355';
-        ctx.beginPath();
-        ctx.arc(
-            decoration.x + 20 * scale,
-            baseY - 15 * scale,
-            20 * scale,
-            0,
-            Math.PI * 2
-        );
-        ctx.fill();
+            // 添加简单的阴影效果
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+            ctx.beginPath();
+            ctx.ellipse(
+                stone.x + stone.size/2,
+                groundY + 20 + stone.size/2 + 5,
+                stone.size/2,
+                stone.size/4,
+                0,
+                0,
+                Math.PI * 2
+            );
+            ctx.fill();
+        }
     }
 }
