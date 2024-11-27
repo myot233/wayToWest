@@ -3,15 +3,31 @@ let canvas = document.querySelector<HTMLCanvasElement>("#canvas");
 let context = canvas?.getContext("2d");
 
 
-export function enableCanvasFollowWindow(canvas:HTMLCanvasElement){
-    window.onresize = ()=>{
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+export function enableCanvasFollowWindow(canvas: HTMLCanvasElement) {
+    const resizeCanvas = () => {
+        // Get the device pixel ratio to handle high DPI displays
+        const dpr = window.devicePixelRatio || 1;
+        
+        // Set canvas size in CSS pixels
+        canvas.style.width = window.innerWidth + 'px';
+        canvas.style.height = window.innerHeight + 'px';
+        
+        // Set actual canvas buffer size scaled for device pixels
+        canvas.width = Math.floor(window.innerWidth * dpr);
+        canvas.height = Math.floor(window.innerHeight * dpr);
+        
+        // Scale the context to ensure correct drawing
+        const context = canvas.getContext('2d');
+        if (context) {
+            context.scale(dpr, dpr);
+        }
     }
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
 
+    // Set initial size
+    resizeCanvas();
     
+    // Add event listener instead of direct assignment
+    window.addEventListener('resize', resizeCanvas);
 }
 
 export function getCanvasAndContext(){
